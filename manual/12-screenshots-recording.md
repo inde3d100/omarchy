@@ -76,6 +76,16 @@ There are three sizes — small, medium, and large — and the hotkeys step betw
 
 You can also call it directly with `omarchy-capture-webcam-resize small`, or `reset` to go back to medium.
 
+### Showing keystrokes
+
+Install the optional overlay with `omarchy pkg add showmethekey`, then start a recording with `omarchy screenrecord --show-keystrokes` (or `omarchy capture screenrecording --show-keystrokes`). You can combine the flag with `--fullscreen`, audio, webcam, and resolution options.
+
+Omarchy starts `showmethekey-gtk -k -A -C`, waits for its floating window to appear, and only then starts the recorder. The recorder captures the visible overlay as pixels in the video; Omarchy does not create a separate key log. The overlay instance started for that recording is stopped when the recording stops, fails to start, or exits unexpectedly, without stopping independently launched Show Me The Key windows. If Show Me The Key is missing or its window cannot open, the recording aborts instead of continuing without keystrokes.
+
+`--show-keystrokes` requires monitor or region capture. It is rejected when `OMARCHY_SCREENRECORD_USE_PORTAL=true` selects portal capture because Omarchy cannot guarantee that the compositor-managed overlay will be included there.
+
+**Privacy warning:** Show Me The Key reads and displays every key you type, including passwords; password fields cannot be detected. Quickly press Alt twice (or press both Alt keys) to pause the overlay before entering anything sensitive, then repeat the gesture to resume.
+
 ## Text, QR codes, and colours
 
 `Super + Ctrl + Print Screen` selects a region and OCRs it to the clipboard. That's covered properly in [Text Extraction & Dictation](11-text-extraction-dictation.md).
