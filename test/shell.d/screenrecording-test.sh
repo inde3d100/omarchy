@@ -83,6 +83,35 @@ export OMARCHY_TEST_MENU_ARGS="$tmp_dir/menu-args"
 export OMARCHY_TEST_RECORDER_ARGS="$tmp_dir/recorder-args"
 export OMARCHY_TEST_NOTIFICATION_ARGS="$tmp_dir/notification-args"
 
+omarecord_root="$tmp_dir/omarecord-root"
+mkdir -p "$omarecord_root/bin"
+export OMARCHY_TEST_OMARECORD_ARGS="$tmp_dir/omarecord-args"
+
+cat >"$omarecord_root/bin/omarchy-capture-screenrecording" <<'SH'
+#!/bin/bash
+
+printf '%s\0' "$@" >"$OMARCHY_TEST_OMARECORD_ARGS"
+exit "${OMARCHY_TEST_OMARECORD_STATUS:-0}"
+SH
+chmod +x "$omarecord_root/bin/omarchy-capture-screenrecording"
+
+OMARCHY_PATH="$omarecord_root" "$ROOT/bin/omarecord" --fullscreen --show-keystrokes "two words" ""
+printf '%s\0' --fullscreen --show-keystrokes "two words" "" >"$tmp_dir/expected-omarecord-args"
+cmp -s "$OMARCHY_TEST_OMARECORD_ARGS" "$tmp_dir/expected-omarecord-args" ||
+  fail "omarecord forwards every argument unchanged"
+pass "omarecord forwards every argument unchanged"
+
+if OMARCHY_PATH="$omarecord_root" OMARCHY_TEST_OMARECORD_STATUS=37 "$ROOT/bin/omarecord" --stop-recording; then
+  fail "omarecord returns the implementation status"
+else
+  omarecord_status=$?
+fi
+(( omarecord_status == 37 )) || fail "omarecord returns the implementation status" "expected: 37\nactual:   $omarecord_status"
+printf '%s\0' --stop-recording >"$tmp_dir/expected-omarecord-stop-args"
+cmp -s "$OMARCHY_TEST_OMARECORD_ARGS" "$tmp_dir/expected-omarecord-stop-args" ||
+  fail "omarecord forwards the stop action unchanged"
+pass "omarecord forwards the stop action and returns the implementation status"
+
 mapfile -t capture_devices < <(omarchy-capture-webcam-list)
 expected_capture_devices=(
   "/dev/video42  Built-in Webcam: Integrated Camera"
@@ -287,6 +316,14 @@ grep -F 'o.bind("SUPER + ALT + code:34", "Make webcam overlay smaller", "omarchy
 grep -F 'o.bind("SUPER + ALT + code:35", "Make webcam overlay larger", "omarchy-capture-webcam-resize larger")' \
   "$ROOT/default/hypr/bindings/utilities.lua" >/dev/null || fail "webcam larger hotkey is configured"
 pass "webcam resize hotkeys are configured"
+
+grep -F 'o.bind("ALT + PRINT", "OmaRecord", "omarchy-capture-screenrecording --stop-recording || omarchy-menu toggle trigger.capture.screenrecord")' \
+  "$ROOT/default/hypr/bindings/utilities.lua" >/dev/null || fail "Print Screen recorder binding is branded OmaRecord"
+grep -F 'o.bind("SUPER + ALT + F12", "OmaRecord Display", "omarchy-capture-screenrecording --fullscreen")' \
+  "$ROOT/default/hypr/bindings/media.lua" >/dev/null || fail "Apple fullscreen recorder binding is branded OmaRecord"
+grep -F 'o.bind("SUPER + ALT + XF86AudioRaiseVolume", "OmaRecord Display (Apple top row)", "omarchy-capture-screenrecording --fullscreen")' \
+  "$ROOT/default/hypr/bindings/media.lua" >/dev/null || fail "Apple top-row recorder binding is branded OmaRecord"
+pass "recorder binding descriptions use OmaRecord"
 
 grep -F -- '--wayland-app-id="WebcamOverlay-$WEBCAM_SIZE"' \
   "$ROOT/bin/omarchy-capture-screenrecording" >/dev/null || fail "webcam uses a dedicated size-specific app id"
